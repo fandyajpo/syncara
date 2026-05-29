@@ -25,7 +25,7 @@ jobs:
             artifact: aarch64-linux-gnu
             ext: tar.gz
           - target: x86_64-apple-darwin
-            runner: macos-13
+            runner: macos-latest
             artifact: x86_64-apple-darwin
             ext: tar.gz
           - target: aarch64-apple-darwin

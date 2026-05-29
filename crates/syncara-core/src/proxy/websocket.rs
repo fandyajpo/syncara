@@ -15,7 +15,10 @@ use tokio::io::AsyncWriteExt;
 use tokio::net::TcpStream;
 use tracing::{info, warn};
 
+#[cfg(unix)]
 use std::os::unix::io::{FromRawFd, IntoRawFd};
+#[cfg(windows)]
+use std::os::windows::io::{FromRawSocket, IntoRawSocket};
 
 use socket2::{Socket, TcpKeepalive};
 
@@ -146,6 +149,7 @@ pub async fn proxy_websocket(
 }
 
 /// Apply TCP keepalive to a tokio TcpStream, consuming and returning it.
+#[cfg(unix)]
 fn apply_keepalive(stream: tokio::net::TcpStream, ka: std::time::Duration) -> tokio::net::TcpStream {
     match stream.into_std() {
         Ok(std_stream) => {
@@ -158,8 +162,25 @@ fn apply_keepalive(stream: tokio::net::TcpStream, ka: std::time::Duration) -> to
         }
         Err(e) => {
             warn!("failed to convert to std TcpStream for keepalive: {e}");
-            // Cannot use the consumed stream; this branch is unreachable on
-            // a valid stream, so panicking is acceptable.
+            panic!("TcpStream::into_std failed: {e}");
+        }
+    }
+}
+
+/// Windows-compatible keepalive using socket2 directly.
+#[cfg(windows)]
+fn apply_keepalive(stream: tokio::net::TcpStream, ka: std::time::Duration) -> tokio::net::TcpStream {
+    match stream.into_std() {
+        Ok(std_stream) => {
+            let socket = Socket::from(std_stream);
+            let _ = socket.set_tcp_keepalive(&TcpKeepalive::new().with_time(ka));
+            let sock = socket.into_raw_socket();
+            let std_stream = unsafe { std::net::TcpStream::from_raw_socket(sock) };
+            tokio::net::TcpStream::from_std(std_stream)
+                .expect("failed to reclaim TcpStream after keepalive config")
+        }
+        Err(e) => {
+            warn!("failed to convert to std TcpStream for keepalive: {e}");
             panic!("TcpStream::into_std failed: {e}");
         }
     }

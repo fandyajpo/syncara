@@ -58,7 +58,12 @@ jobs:
 
       - name: Strip binary
         if: matrix.ext == 'tar.gz'
-        run: strip "target/${{ matrix.target }}/release/syncara"
+        run: |
+          if [ '${{ matrix.target }}' = 'aarch64-unknown-linux-gnu' ]; then
+            aarch64-linux-gnu-strip "target/${{ matrix.target }}/release/syncara"
+          else
+            strip "target/${{ matrix.target }}/release/syncara"
+          fi
 
       - name: Package (tar.gz)
         if: matrix.ext == 'tar.gz'

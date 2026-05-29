@@ -1,8 +1,12 @@
 /// Signal handling for graceful shutdown and config reload.
 ///
-/// Watches for:
+/// Unix:
 ///   - SIGTERM / SIGINT → graceful shutdown
 ///   - SIGHUP → config hot reload
+/// Windows:
+///   - Ctrl-C → graceful shutdown (no reload support)
+
+#[cfg(unix)]
 use tokio::signal::unix::{signal, SignalKind};
 
 /// Represents a signal that was received.
@@ -12,6 +16,7 @@ pub enum Signal {
 }
 
 /// Wait for the next OS signal.
+#[cfg(unix)]
 pub async fn next_signal() -> Signal {
     let mut term = signal(SignalKind::terminate()).expect("failed to register SIGTERM handler");
     let mut intr = signal(SignalKind::interrupt()).expect("failed to register SIGINT handler");
@@ -22,4 +27,11 @@ pub async fn next_signal() -> Signal {
         _ = intr.recv() => Signal::Shutdown,
         _ = hup.recv() => Signal::Reload,
     }
+}
+
+/// Windows — only Ctrl-C shutdown, no reload.
+#[cfg(windows)]
+pub async fn next_signal() -> Signal {
+    tokio::signal::ctrl_c().await.expect("failed to register Ctrl-C handler");
+    Signal::Shutdown
 }

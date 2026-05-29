@@ -9,7 +9,7 @@ pub mod validate;
 use std::path::Path;
 
 pub use crate::security::SecurityConfig;
-pub use self::admin::{AdminConfig, ManagementAuth};
+pub use self::admin::AdminConfig;
 pub use self::brain::BrainConfig;
 pub use self::health::{HealthCheckConfig, PassiveCheckConfig};
 pub use self::listener::ListenerConfig;

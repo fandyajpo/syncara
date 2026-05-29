@@ -1,5 +1,6 @@
 import { Hero } from "@/components/hero"
 import { Features } from "@/components/features"
+import { StatsBar } from "@/components/stats-bar"
 import { LocalVsProduction } from "@/components/local-vs-production"
 import { HowItWorks } from "@/components/how-it-works"
 import { InteractiveDemo } from "@/components/interactive-demo"
@@ -13,6 +14,7 @@ export default function Home() {
   return (
     <>
       <Hero />
+      <StatsBar />
       <Features />
       <LocalVsProduction />
       <HowItWorks />

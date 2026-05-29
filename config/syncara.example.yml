@@ -7,9 +7,3 @@ listeners:
 routes:
   - path: /
     proxy: http://localhost:3000
-
-admin:
-  port: 9090
-  management:
-    username: admin
-    password: syncara123

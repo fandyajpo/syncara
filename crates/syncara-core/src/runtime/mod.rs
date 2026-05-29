@@ -2,10 +2,7 @@ pub mod signals;
 pub mod status;
 
 use std::net::SocketAddr;
-use std::path::PathBuf;
 use std::sync::Arc;
-
-use tokio::sync::mpsc;
 
 use crate::balancer::UpstreamPool;
 use crate::config::Config;
@@ -24,25 +21,6 @@ static CONFIG_PATH: std::sync::OnceLock<std::path::PathBuf> = std::sync::OnceLoc
 /// Set the config file path for reload support.
 pub fn set_config_path(path: &str) {
     let _ = CONFIG_PATH.set(std::path::PathBuf::from(path));
-}
-
-/// Get the config file path.
-pub fn get_config_path() -> &'static PathBuf {
-    CONFIG_PATH.get_or_init(|| PathBuf::from("syncara.yml"))
-}
-
-/// Channel for admin-triggered config reloads.
-static RELOAD_SENDER: std::sync::OnceLock<mpsc::UnboundedSender<()>> =
-    std::sync::OnceLock::new();
-
-/// Trigger a config reload from the admin management UI.
-pub fn trigger_admin_reload() -> Result<(), String> {
-    RELOAD_SENDER
-        .get()
-        .ok_or_else(|| "reload channel not initialized".to_string())
-        .map(|tx| {
-            let _ = tx.send(());
-        })
 }
 
 /// Entry point called from `lib.rs::bootstrap`.
@@ -86,10 +64,6 @@ pub async fn run(config: Config) -> anyhow::Result<()> {
             .and_then(|s| crate::config::validate::parse_duration(s).ok())
             .map(std::time::Duration::from_secs)
             .unwrap_or(std::time::Duration::from_secs(5));
-
-        // Give admin server access to pools + management auth + API key
-        observability::admin::init_manage(pools.clone(), cfg.admin.management.clone(), cfg.admin.api_key.clone());
-
         tokio::spawn(observability::admin::serve(admin_addr, admin_key, shutdown_rx.clone()));
     }
 
@@ -114,28 +88,16 @@ pub async fn run(config: Config) -> anyhow::Result<()> {
         }
     });
 
-    // ---- Admin reload channel ----
-    let (reload_tx, mut reload_rx) = mpsc::unbounded_channel::<()>();
-    RELOAD_SENDER.set(reload_tx).ok();
-
     // ---- Signal handling loop ----
     loop {
-        tokio::select! {
-            sig = signals::next_signal() => {
-                match sig {
-                    signals::Signal::Shutdown => {
-                        tracing::info!("shutdown signal received, draining connections");
-                        let _ = shutdown_tx.send(true);
-                        tokio::time::sleep(drain_timeout).await;
-                        break;
-                    }
-                    signals::Signal::Reload => {
-                        handle_reload(&config_arc, &router, &pools, &mut health_handle, &shutdown_rx).await;
-                    }
-                }
+        match signals::next_signal().await {
+            signals::Signal::Shutdown => {
+                tracing::info!("shutdown signal received, draining connections");
+                let _ = shutdown_tx.send(true);
+                tokio::time::sleep(drain_timeout).await;
+                break;
             }
-            _ = reload_rx.recv() => {
-                tracing::info!("admin-triggered config reload...");
+            signals::Signal::Reload => {
                 handle_reload(&config_arc, &router, &pools, &mut health_handle, &shutdown_rx).await;
             }
         }
@@ -146,7 +108,7 @@ pub async fn run(config: Config) -> anyhow::Result<()> {
     Ok(())
 }
 
-/// Shared reload logic used by both SIGHUP and admin-triggered reloads.
+/// Shared reload logic used by SIGHUP.
 async fn handle_reload(
     config_arc: &Arc<tokio::sync::RwLock<Config>>,
     router: &Arc<tokio::sync::RwLock<Router>>,

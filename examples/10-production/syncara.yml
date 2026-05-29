@@ -47,9 +47,6 @@ security:
 admin:
   host: "127.0.0.1"
   port: 9090
-  management:
-    username: admin
-    password: syncara123
 
 logging:
   level: info

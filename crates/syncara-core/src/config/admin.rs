@@ -19,19 +19,6 @@ pub struct AdminConfig {
     /// Defaults to 5 seconds.
     #[serde(default)]
     pub drain_timeout: Option<String>,
-
-    /// Optional username/password for the management UI login.
-    /// When set, the `/_manage/*` routes require login.
-    #[serde(default)]
-    pub management: Option<ManagementAuth>,
-}
-
-/// Credentials for the management UI login page.
-#[derive(Debug, Clone, serde::Deserialize)]
-#[serde(deny_unknown_fields)]
-pub struct ManagementAuth {
-    pub username: String,
-    pub password: String,
 }
 
 fn default_admin_port() -> u16 {
@@ -49,7 +36,6 @@ impl Default for AdminConfig {
             host: default_admin_host(),
             api_key: None,
             drain_timeout: None,
-            management: None,
         }
     }
 }

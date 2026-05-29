@@ -10,7 +10,7 @@ set -euo pipefail
 #  Installs the latest (or specified) release to /usr/local/bin.
 # ─────────────────────────────────────────────────────────────
 
-REPO="anomalyco/syncara"
+REPO="fandyajpo/syncara"
 INSTALL_DIR="${INSTALL_DIR:-/usr/local/bin}"
 
 # ── helpers ──────────────────────────────────────────────────

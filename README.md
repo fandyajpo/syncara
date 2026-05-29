@@ -9,6 +9,33 @@ client ──► Syncara ──► upstream A (score: 100)
                          upstream B (score:  70 — connection load -20, health -10)
 ```
 
+## Install
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/fandyajpo/syncara/main/scripts/install.sh | sh
+```
+
+Or build from source:
+
+```sh
+git clone https://github.com/fandyajpo/syncara.git
+cd syncara
+cargo build --release
+./target/release/syncara start -c config/syncara.yml
+```
+
+## Quickstart
+
+```sh
+# Generate a starter config
+syncara init
+
+# Start the proxy
+syncara start -c syncara.yml
+```
+
+Then open `http://localhost:8090` — traffic is proxied to the upstreams defined in your config.
+
 ## Features
 
 - **Traffic Brain** — explainable scoring for every routing decision, streamed live via SSE to a dashboard

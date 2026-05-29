@@ -23,6 +23,10 @@ Monitoring:
   syncara status
   syncara doctor
   syncara tune
+
+Manage:
+  syncara update
+  syncara uninstall
 "
 )]
 struct Cli {
@@ -73,6 +77,18 @@ enum Commands {
 
     /// System tuning recommendations and diagnostics
     Tune,
+
+    /// Update Syncara to the latest version
+    Update {
+        #[arg(long, help = "Install a specific version (e.g. 0.1.0)")]
+        version: Option<String>,
+    },
+
+    /// Uninstall Syncara and remove related files
+    Uninstall {
+        #[arg(long, help = "Skip confirmation prompt")]
+        force: bool,
+    },
 }
 
 fn main() -> anyhow::Result<()> {
@@ -92,6 +108,8 @@ fn main() -> anyhow::Result<()> {
         Commands::Reload => cmd_reload(&cli.config),
         Commands::Doctor => cmd_doctor(&cli.config),
         Commands::Tune => cmd_tune(&cli.config),
+        Commands::Update { version } => cmd_update(version.as_deref()),
+        Commands::Uninstall { force } => cmd_uninstall(force),
     }
 }
 
@@ -520,6 +538,173 @@ fn cmd_tune(config_path: &str) -> anyhow::Result<()> {
 
     eprintln!();
     eprintln!("── Done ────────────────────────────────────");
+
+    Ok(())
+}
+
+fn cmd_update(version: Option<&str>) -> anyhow::Result<()> {
+    let repo = "fandyajpo/syncara";
+
+    // Resolve version
+    let ver = match version {
+        Some(v) => v.trim_start_matches('v').to_string(),
+        None => {
+            eprint!("Checking latest version... ");
+            let url = format!("https://api.github.com/repos/{repo}/releases/latest");
+            let resp = ureq::get(&url)
+                .set("User-Agent", "syncara")
+                .call()
+                .map_err(|e| anyhow::anyhow!("failed to fetch latest release: {e}"))?;
+            let json: serde_json::Value = serde_json::from_str(&resp.into_string()?)?;
+            let tag = json["tag_name"].as_str().unwrap_or("v0.1.0");
+            let v = tag.trim_start_matches('v').to_string();
+            eprintln!("v{v}");
+            v
+        }
+    };
+
+    // Detect platform
+    let arch = std::process::Command::new("uname")
+        .arg("-m")
+        .output()
+        .ok()
+        .and_then(|o| String::from_utf8(o.stdout).ok())
+        .map(|s| s.trim().to_string())
+        .unwrap_or_default();
+
+    let os = std::process::Command::new("uname")
+        .arg("-s")
+        .output()
+        .ok()
+        .and_then(|o| String::from_utf8(o.stdout).ok())
+        .map(|s| s.trim().to_string())
+        .unwrap_or_default();
+
+    let target_arch = match arch.as_str() {
+        "x86_64" | "amd64" => "x86_64",
+        "aarch64" | "arm64" => "aarch64",
+        _ => anyhow::bail!("unsupported architecture: {arch}"),
+    };
+
+    let target_os = match os.as_str() {
+        "Linux" => "unknown-linux-gnu",
+        "Darwin" => "apple-darwin",
+        _ => anyhow::bail!("unsupported OS: {os}"),
+    };
+
+    let target = format!("{target_arch}-{target_os}");
+    let artifact = format!("syncara-{ver}-{target}.tar.gz");
+    let url = format!("https://github.com/{repo}/releases/download/v{ver}/{artifact}");
+
+    eprintln!("Downloading Syncara v{ver} ({target})...");
+
+    let tmpdir = tempfile::tempdir().map_err(|e| anyhow::anyhow!("failed to create temp dir: {e}"))?;
+    let archive_path = tmpdir.path().join(&artifact);
+
+    let resp = ureq::get(&url)
+        .set("User-Agent", "syncara")
+        .call()
+        .map_err(|e| anyhow::anyhow!("download failed: {e}"))?;
+
+    let mut body = resp.into_reader();
+    let mut file = std::fs::File::create(&archive_path)?;
+    std::io::copy(&mut body, &mut file)?;
+    drop(file);
+
+    // Extract
+    eprintln!("Extracting...");
+    let archive = std::fs::File::open(&archive_path)?;
+    let tar = flate2::read::GzDecoder::new(archive);
+    let extracted_dir = tmpdir.path().join("extracted");
+    std::fs::create_dir_all(&extracted_dir)?;
+    tar::Archive::new(tar).unpack(&extracted_dir)?;
+
+    let binary = extracted_dir.join("syncara");
+    if !binary.exists() {
+        // Check for syncara.exe on Windows
+        let binary_exe = extracted_dir.join("syncara.exe");
+        if binary_exe.exists() {
+            anyhow::bail!("Windows is not supported for self-update yet");
+        }
+        anyhow::bail!("downloaded archive does not contain syncara binary");
+    }
+
+    // Replace current binary
+    let current_exe = std::env::current_exe()?;
+    let backup = current_exe.with_extension("old");
+
+    eprintln!("Installing to {}...", current_exe.display());
+
+    // Rename current to backup, move new in place, then remove backup
+    if backup.exists() {
+        std::fs::remove_file(&backup)?;
+    }
+    std::fs::rename(&current_exe, &backup)?;
+    if let Err(e) = std::fs::rename(&binary, &current_exe) {
+        // Restore backup on failure
+        let _ = std::fs::rename(&backup, &current_exe);
+        anyhow::bail!("failed to install update: {e}");
+    }
+    let _ = std::fs::remove_file(&backup);
+
+    // Make executable (should be already, but just in case)
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let metadata = std::fs::metadata(&current_exe)?;
+        let mut perms = metadata.permissions();
+        perms.set_mode(0o755);
+        std::fs::set_permissions(&current_exe, perms)?;
+    }
+
+    eprintln!("✓  Updated to Syncara v{ver}");
+    eprintln!("   Restart Syncara to use the new version.");
+
+    Ok(())
+}
+
+fn cmd_uninstall(force: bool) -> anyhow::Result<()> {
+    let current_exe = std::env::current_exe()?;
+
+    if !force {
+        eprint!("Remove Syncara binary at {}? (y/N) ", current_exe.display());
+        std::io::Write::flush(&mut std::io::stdout())?;
+        let mut input = String::new();
+        std::io::stdin().read_line(&mut input)?;
+        if !input.trim().eq_ignore_ascii_case("y") {
+            eprintln!("Aborted.");
+            return Ok(());
+        }
+    }
+
+    // Remove PID file
+    let pid_path = Path::new("syncara.pid");
+    if pid_path.exists() {
+        std::fs::remove_file(pid_path)?;
+        eprintln!("✓  Removed syncara.pid");
+    }
+
+    // Remove binary
+    match std::fs::remove_file(&current_exe) {
+        Ok(()) => {
+            eprintln!("✓  Removed {}", current_exe.display());
+            eprintln!("Syncara has been uninstalled.");
+        }
+        Err(e) if e.kind() == std::io::ErrorKind::PermissionDenied => {
+            eprintln!("⚠  Need sudo to remove {}:", current_exe.display());
+            let status = std::process::Command::new("sudo")
+                .args(["rm", &current_exe.to_string_lossy()])
+                .status()
+                .map_err(|_| anyhow::anyhow!("sudo failed"))?;
+            if status.success() {
+                eprintln!("✓  Removed {}", current_exe.display());
+                eprintln!("Syncara has been uninstalled.");
+            } else {
+                anyhow::bail!("sudo rm failed");
+            }
+        }
+        Err(e) => anyhow::bail!("failed to remove binary: {e}"),
+    }
 
     Ok(())
 }

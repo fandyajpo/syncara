@@ -1,0 +1,19 @@
+listeners:
+  - port: 8080
+
+pools:
+  - name: web
+    strategy: weighted
+    upstreams:
+      - addr: "localhost:9001"
+        weight: 90
+      - addr: "localhost:9002"
+        weight: 10
+
+routes:
+  - path: /
+    pool: web
+
+logging:
+  level: info
+  format: text

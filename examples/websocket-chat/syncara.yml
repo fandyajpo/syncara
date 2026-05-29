@@ -1,0 +1,10 @@
+listeners:
+  - port: 8080
+
+routes:
+  - path: /
+    proxy: http://localhost:9003
+
+logging:
+  level: info
+  format: text

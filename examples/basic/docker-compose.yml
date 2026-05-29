@@ -1,0 +1,21 @@
+services:
+  backend-1:
+    image: nginx:alpine
+    ports:
+      - "9001:80"
+
+  backend-2:
+    image: nginx:alpine
+    ports:
+      - "9002:80"
+
+  syncara:
+    build:
+      context: ../..
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+      - "9090:9090"
+    volumes:
+      - ./syncara.yml:/etc/syncara/syncara.yml
+    command: ["start", "-c", "/etc/syncara/syncara.yml"]

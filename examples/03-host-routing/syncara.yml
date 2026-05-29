@@ -1,0 +1,22 @@
+listeners:
+  - port: 8080
+
+pools:
+  - name: app-a
+    upstreams:
+      - addr: "localhost:9001"
+  - name: app-b
+    upstreams:
+      - addr: "localhost:9002"
+
+routes:
+  - host: app-a.example.com
+    path: /
+    pool: app-a
+  - host: app-b.example.com
+    path: /
+    pool: app-b
+
+logging:
+  level: info
+  format: text

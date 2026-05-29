@@ -1,0 +1,17 @@
+listeners:
+  - port: 8080
+
+pools:
+  - name: web
+    strategy: round-robin
+    upstreams:
+      - addr: "localhost:9001"
+      - addr: "localhost:9002"
+
+routes:
+  - path: /
+    pool: web
+
+logging:
+  level: info
+  format: text

@@ -1,0 +1,15 @@
+listeners:
+  - port: 8080
+
+pools:
+  - name: ws
+    upstreams:
+      - addr: "localhost:9003"
+
+routes:
+  - path: /
+    pool: ws
+
+logging:
+  level: info
+  format: text

@@ -1,0 +1,13 @@
+/target
+*.swp
+*.swo
+.DS_Store
+.env
+
+# Node / Next.js
+node_modules/
+app/.next/
+app/out/
+
+# Runtime
+syncara.pid

@@ -1,0 +1,9 @@
+# Minimal Syncara configuration
+# Single listener, single upstream, no health checks, no TLS.
+
+listeners:
+  - port: 8080
+
+routes:
+  - path: /
+    proxy: http://localhost:3000

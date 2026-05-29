@@ -1,0 +1,20 @@
+listeners:
+  - port: 8080
+
+pools:
+  - name: api
+    upstreams:
+      - addr: "localhost:9001"
+  - name: static
+    upstreams:
+      - addr: "localhost:9002"
+
+routes:
+  - path: /api
+    pool: api
+  - path: /
+    pool: static
+
+logging:
+  level: info
+  format: text

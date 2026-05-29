@@ -1,0 +1,20 @@
+services:
+  backend:
+    image: node:22-alpine
+    working_dir: /app
+    ports:
+      - "9003:9003"
+    command: sh -c "npm install && node server.js"
+    volumes:
+      - .:/app
+
+  syncara:
+    build:
+      context: ../..
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+      - "9090:9090"
+    volumes:
+      - ./syncara.yml:/etc/syncara/syncara.yml
+    command: ["start", "-c", "/etc/syncara/syncara.yml"]

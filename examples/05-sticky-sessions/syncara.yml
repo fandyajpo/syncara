@@ -1,0 +1,21 @@
+listeners:
+  - port: 8080
+
+pools:
+  - name: web
+    strategy: sticky
+    upstreams:
+      - addr: "localhost:9001"
+      - addr: "localhost:9002"
+    session:
+      enabled: true
+      cookie_name: "_syncara"
+      ttl: "5m"
+
+routes:
+  - path: /
+    pool: web
+
+logging:
+  level: info
+  format: text

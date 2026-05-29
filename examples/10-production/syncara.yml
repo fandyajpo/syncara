@@ -1,0 +1,53 @@
+listeners:
+  - port: 8080
+
+pools:
+  - name: api
+    strategy: brain
+    upstreams:
+      - addr: "localhost:9001"
+      - addr: "localhost:9002"
+    health:
+      path: /
+      interval: "10s"
+      timeout: "3s"
+      unhealthy_threshold: 3
+    brain:
+      latency_aware: true
+      health_aware: true
+
+  - name: websocket
+    strategy: sticky
+    upstreams:
+      - addr: "localhost:9003"
+    session:
+      enabled: true
+      cookie_name: "_syncara"
+      ttl: "1h"
+
+routes:
+  - host: api.example.com
+    path: /
+    pool: api
+  - host: ws.example.com
+    path: /
+    pool: websocket
+
+security:
+  rate_limit:
+    enabled: true
+    requests_per_minute: 300
+  connections:
+    max_active: 10000
+    websocket_max: 2000
+  request_timeout: "30s"
+  upstream_timeout: "30s"
+  websocket_timeout: "30m"
+
+admin:
+  host: "127.0.0.1"
+  port: 9090
+
+logging:
+  level: info
+  format: json

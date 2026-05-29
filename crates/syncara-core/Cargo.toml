@@ -1,0 +1,45 @@
+[package]
+name = "syncara-core"
+description = "Syncara Smart Traffic Brain — core library"
+version.workspace = true
+edition = "2021"
+[features]
+default = []
+
+[dependencies]
+tokio.workspace = true
+hyper.workspace = true
+hyper-util.workspace = true
+http.workspace = true
+bytes.workspace = true
+http-body.workspace = true
+http-body-util.workspace = true
+serde.workspace = true
+serde_yaml.workspace = true
+serde_json.workspace = true
+rustls.workspace = true
+rustls-pemfile.workspace = true
+tokio-rustls.workspace = true
+tokio-tungstenite.workspace = true
+tungstenite.workspace = true
+prometheus.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+clap.workspace = true
+anyhow.workspace = true
+thiserror.workspace = true
+dashmap.workspace = true
+chrono.workspace = true
+rand.workspace = true
+socket2 = "0.5"
+tokio-stream.workspace = true
+futures-core.workspace = true
+
+[dev-dependencies]
+tracing-test = "0.2"
+criterion.workspace = true
+pprof.workspace = true
+
+[[bench]]
+name = "bench_main"
+harness = false

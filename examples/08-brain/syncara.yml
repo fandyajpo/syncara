@@ -1,0 +1,20 @@
+listeners:
+  - port: 8080
+
+pools:
+  - name: web
+    strategy: brain
+    upstreams:
+      - addr: "localhost:9001"
+      - addr: "localhost:9002"
+    brain:
+      latency_aware: true
+      health_aware: true
+
+routes:
+  - path: /
+    pool: web
+
+logging:
+  level: info
+  format: text

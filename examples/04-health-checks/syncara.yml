@@ -1,0 +1,23 @@
+listeners:
+  - port: 8080
+
+pools:
+  - name: web
+    strategy: round-robin
+    upstreams:
+      - addr: "localhost:9001"
+      - addr: "localhost:9002"
+    health:
+      path: /
+      interval: "5s"
+      timeout: "2s"
+      unhealthy_threshold: 1
+      healthy_threshold: 1
+
+routes:
+  - path: /
+    pool: web
+
+logging:
+  level: info
+  format: text

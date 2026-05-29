@@ -25,6 +25,8 @@ Monitoring:
   syncara tune
 
 Manage:
+  syncara stop
+  syncara reload
   syncara update
   syncara uninstall
 "
@@ -69,6 +71,12 @@ enum Commands {
         admin: String,
     },
 
+    /// Stop a running Syncara process
+    Stop {
+        #[arg(long, help = "Signal to send (default: SIGTERM)", default_value = "TERM")]
+        signal: String,
+    },
+
     /// Send reload (SIGHUP) to a running Syncara process
     Reload,
 
@@ -105,6 +113,7 @@ fn main() -> anyhow::Result<()> {
             }
         }
         Commands::Status { admin } => cmd_status(&admin),
+        Commands::Stop { signal } => cmd_stop(&signal),
         Commands::Reload => cmd_reload(&cli.config),
         Commands::Doctor => cmd_doctor(&cli.config),
         Commands::Tune => cmd_tune(&cli.config),
@@ -385,6 +394,28 @@ fn cmd_status(admin_url: &str) -> anyhow::Result<()> {
         }
     }
     Ok(())
+}
+
+fn cmd_stop(signal: &str) -> anyhow::Result<()> {
+    let pid = read_pid_file()?;
+
+    eprintln!("Sending SIG{signal} to PID {pid}...");
+    let status = std::process::Command::new("kill")
+        .args([&format!("-{signal}"), &pid.to_string()])
+        .status()
+        .map_err(|e| anyhow::anyhow!("failed to send signal: {e}"))?;
+
+    if status.success() {
+        eprintln!("✓  Signal sent to PID {pid}");
+        // If TERM, wait a moment then remove stale pid file
+        if signal == "TERM" || signal == "INT" {
+            std::thread::sleep(std::time::Duration::from_millis(500));
+            let _ = std::fs::remove_file("syncara.pid");
+        }
+        Ok(())
+    } else {
+        anyhow::bail!("kill command failed (exit code: {:?})", status.code());
+    }
 }
 
 fn cmd_reload(config_path: &str) -> anyhow::Result<()> {

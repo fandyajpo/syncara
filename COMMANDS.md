@@ -57,6 +57,20 @@ syncara status --admin http://192.168.1.10:9090
 
 ---
 
+## syncara stop
+
+Stop a running Syncara process.
+
+```sh
+syncara stop                          # sends SIGTERM
+syncara stop --signal INT             # send SIGINT instead
+syncara stop --signal HUP             # send SIGHUP (same as reload)
+```
+
+**Use case:** Gracefully shut down the proxy from the command line without needing to find the PID.
+
+---
+
 ## syncara reload
 
 Validate config and send SIGHUP to reload without downtime.

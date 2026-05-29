@@ -139,6 +139,7 @@ jobs:
 
       - name: Generate Homebrew formula
         env:
+          FORMULA_TEMPLATE: Formula/syncara.rb
           VERSION: ${{ steps.sha256.outputs.version }}
           MACOS_ARM64_SHA256: ${{ steps.sha256.outputs.aarch64_apple_darwin }}
           MACOS_X86_64_SHA256: ${{ steps.sha256.outputs.x86_64_apple_darwin }}
